@@ -5,6 +5,7 @@ use warnings;
 use base 'Mojolicious::Plugin';
 
 our $VERSION = '0.01';
+our $CODE_LENGTH = 6;
 
 __PACKAGE__->attr( 'public_uri'        => '/' );
 __PACKAGE__->attr( 'string_to_replace' => '%INSERT_COMMENTS_HERE%' );
@@ -20,25 +21,15 @@ sub register {
 
     # Replace the placeholder with the actual comments.
     $app->plugins->add_hook(
-        after_dispatch => sub { shift; $self->comments(@_) } );
-
-    # Deleting them.
-    $app->routes->route('/comment/delete/:article/:timestamp')->to( cb => \&del_comment );
+        after_dispatch => sub { shift; $self->show_comments(@_) } );
 
     # Add a route for adding comments.
     $app->routes->route('/comment/add')->to( cb => \&add_comment );
 
-}
+    # Deleting them.
+    $app->routes->route('/comment/delete/:article/:timestamp')
+                ->to( cb => \&del_comment );
 
-sub del_comment {
-    my $self = shift;
-    my $article = $self->stash('article');
-    my $timestamp = $self->stash('timestamp');
-    warn "ready to delete";
-
-    $self->res->code(200);
-    $self->res->body("deleting $article $timestamp");
-    return 1;
 }
 
 sub add_comment {
@@ -53,7 +44,8 @@ sub add_comment {
     my $comments_dir = _comments_dir($article);
     die unless ( -d $comments_dir );
 
-    my $filename = "$comments_dir/$timestamp-unmoderated.md";
+    my $filename = "$comments_dir/$timestamp-" . _random_code() .
+                   "-unmoderated.md";
     open( my $fh, ">", $filename ) || die;
     print $fh "author: $user\n";
     print $fh "ip: $ip\n";
@@ -67,23 +59,18 @@ sub add_comment {
     return 1;
 }
 
-sub _article_name {
-    my $article = shift;
+sub del_comment {
+    my $self = shift;
+    my $article = $self->stash('article');
+    my $timestamp = $self->stash('timestamp');
+    warn "ready to delete";
 
-    my $name = sprintf( "%d%02d%02d-%s",
-        $article->{year}, $article->{month},
-        $article->{day},  $article->{name} );
-    return $name;
+    $self->res->code(200);
+    $self->res->body("deleting $article $timestamp");
+    return 1;
 }
 
-sub _comments_dir {
-    my $article_name       = shift;
-
-    my $comments_dir = "comments/$article_name";
-    return $comments_dir;
-}
-
-sub comments {
+sub show_comments {
     my $self = shift;
     my $c    = shift;
     my $path = $c->req->url->path;
@@ -99,11 +86,10 @@ sub comments {
         return;
     }
 
-    warn "HERE";
-    
     my $comment_html = "<hr />";
     foreach my $comment_file ( glob "$comments_dir/*.md" ) {
-        my ( $timestamp, $ext ) = $comment_file =~ /(\d+)\.(\w+)$/;
+        my ( $timestamp, $ext ) = 
+          $comment_file =~ /(\d+)\-\w+\.(\w+)$/;
         open my $comment_fh, "<", $comment_file || die;
 
         # parse metadata
@@ -148,6 +134,31 @@ sub comments {
 
 }
 
+sub _article_name {
+    my $article = shift;
+
+    my $name = sprintf( "%d%02d%02d-%s",
+        $article->{year}, $article->{month},
+        $article->{day},  $article->{name} );
+    return $name;
+}
+
+sub _comments_dir {
+    my $article_name       = shift;
+
+    my $comments_dir = "comments/$article_name";
+    return $comments_dir;
+}
+
+sub _random_code {
+    my @chars = (0..9, 'A'..'Z');
+    my $string = '';
+    foreach (1..$CODE_LENGTH) {
+        $string .= $chars[rand(@chars)];
+    }
+    return $string;
+}
+
 1;
 
 __DATA__
@@ -166,22 +177,6 @@ Your email: <input type="text" name="email" > (optional)<br />
 </textarea><br />
 <input type="submit">
 </form>
-
-@@ gallery.html.e
-% my $count = 1;
-% my $pad = $padding / 2;
-
-<center><table cellpadding='<%= $pad %>'><tr>
-% foreach my $img (@{$images}) {
-   <td><a target=_blank href='<%= $img->{large_url} %>'>
-   <img border='0' src='<%= $img->{thumbnail_url} %>'></a></td>
-%   if ( $count % $columns == 0 ) {
-      </tr><tr>
-%   }
-%   $count++;
-% }
-</tr></table></center>
-
 
 __END__
 
