@@ -35,9 +35,16 @@ sub register {
     $app->routes->route('/comment/add')->to( cb => \&add_comment );
 
     # Deleting them.
-    $app->routes->route('/comment/delete/:article/:timestamp')
+    $app->routes->route('/comment/delete/:article/:timestamp/:code')
+                ->name('delete')
                 ->to( cb => \&del_comment );
 
+    # Approving them.
+    $app->routes->route('/comment/approve/:article/:timestamp/:code')
+                ->name('approve')
+                ->to( cb => \&app_comment );
+
+    $app->log->debug("Registered");
 }
 
 sub add_comment {
@@ -48,11 +55,12 @@ sub add_comment {
     my $article = $self->param('article');
 
     my $timestamp = time();
+    my $code = _random_code();
 
     my $comments_dir = _comments_dir($article);
     die unless ( -d $comments_dir );
 
-    my $comment_filename = "$timestamp-" . _random_code();
+    my $comment_filename = "$timestamp-$code";
 
     my $filename = "$comments_dir/$comment_filename".
                    "-unmoderated.md";
@@ -61,6 +69,7 @@ sub add_comment {
     print $fh "ip: $ip\n";
     print $fh "\n";
     print $fh "$comment\n";
+    print $fh "-----\n";
     close $fh;
 
     $self->res->code(200);
@@ -73,8 +82,39 @@ sub add_comment {
     print $fh "IP:     $ip\n";
     print $fh "\n";
     print $fh "$comment\n\n";
+    print $fh "APPROVE: " . $self->url_for('approve',
+                                           article   => $article,
+                                           timestamp => $timestamp,
+                                           code      => $code,
+                                          )->to_abs() . "\n";
+    print $fh "DELETE: "  . $self->url_for('delete',
+                                           article   => $article,
+                                           timestamp => $timestamp,
+                                           code      => $code,
+                                          )->to_abs() . "\n";
     close $fh;
 
+    return 1;
+}
+
+sub app_comment {
+    my $self = shift;
+    my $article = $self->stash('article');
+    my $timestamp = $self->stash('timestamp');
+    my $code = $self->stash('code');
+
+    $timestamp =~ s/[^\d]//g;
+    $code      =~ s/[^\w]//g;
+
+    my $comments_dir = _comments_dir($article);
+    die unless ( -d $comments_dir );
+
+    my $comment_file     = "$comments_dir/$timestamp-$code-unmoderated.md";
+    my $new_comment_file = "$comments_dir/$timestamp-$code.md";
+
+    $self->res->code(200);
+    $self->res->body("approving $comment_file");
+    rename $comment_file, $new_comment_file;
     return 1;
 }
 
@@ -82,10 +122,19 @@ sub del_comment {
     my $self = shift;
     my $article = $self->stash('article');
     my $timestamp = $self->stash('timestamp');
-    warn "ready to delete";
+    my $code = $self->stash('code');
+
+    $timestamp =~ s/[^\d]//g;
+    $code      =~ s/[^\w]//g;
+
+    my $comments_dir = _comments_dir($article);
+    die unless ( -d $comments_dir );
+
+    my $comment_file = "$comments_dir/$timestamp-$code-unmoderated.md";
 
     $self->res->code(200);
-    $self->res->body("deleting $article $timestamp");
+    $self->res->body("deleting $comment_file");
+    unlink $comment_file;
     return 1;
 }
 
@@ -100,13 +149,22 @@ sub show_comments {
     my $article      = $c->stash('article');
     my $comments_dir = _comments_dir(_article_name($article));
 
-    if ( !-d $comments_dir ) {
-        $c->app->log->debug("No comments folder at $comments_dir");
+    my $body        = $c->res->body;
+    my $str_replace = $self->string_to_replace;
+
+    if ($body !~ /$str_replace/ms) {
+        $c->app->log->debug("No $str_replace tag- doing nothing");
         return;
+    }
+
+    if ( !-d $comments_dir ) {
+        $c->app->log->debug("No comments folder at $comments_dir - creating");
+        mkdir $comments_dir || die $!;
     }
 
     my $comment_html = "<hr />";
     foreach my $comment_file ( glob "$comments_dir/*.md" ) {
+        next if ($comment_file =~ /unmoderated/);
         my ( $timestamp, $ext ) = 
           $comment_file =~ /(\d+)\-\w+\.(\w+)$/;
         open my $comment_fh, "<", $comment_file || die;
@@ -145,8 +203,6 @@ sub show_comments {
         template_class => __PACKAGE__
     );
 
-    my $body        = $c->res->body;
-    my $str_replace = $self->string_to_replace;
     $body =~ s/$str_replace/$comment_html/;
 
     $c->res->body($body);
