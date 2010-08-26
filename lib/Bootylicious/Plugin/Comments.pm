@@ -4,12 +4,14 @@ use strict;
 use warnings;
 use base 'Mojolicious::Plugin';
 
+use Mail::Send;
+
 our $VERSION = '0.01';
 our $CODE_LENGTH = 6;
 
 __PACKAGE__->attr( 'public_uri'        => '/' );
 __PACKAGE__->attr( 'string_to_replace' => '%INSERT_COMMENTS_HERE%' );
-;    #  build the list of valid image types
+__PACKAGE__->attr( 'email'             => undef );
 
 sub register {
     my ( $self, $app, $args ) = @_;
@@ -18,6 +20,12 @@ sub register {
     $self->public_uri( $args->{'public_uri'} ) if $args->{'public_uri'};
     $self->string_to_replace( $args->{'string_to_replace'} )
         if $args->{'string_to_replace'};
+    if (defined $args->{'email'}) {
+      $self->email( $args->{'email'} );
+    }
+    else {
+      die "you absolutely must define an email address";
+    }
 
     # Replace the placeholder with the actual comments.
     $app->plugins->add_hook(
@@ -44,7 +52,9 @@ sub add_comment {
     my $comments_dir = _comments_dir($article);
     die unless ( -d $comments_dir );
 
-    my $filename = "$comments_dir/$timestamp-" . _random_code() .
+    my $comment_filename = "$timestamp-" . _random_code();
+
+    my $filename = "$comments_dir/$comment_filename".
                    "-unmoderated.md";
     open( my $fh, ">", $filename ) || die;
     print $fh "author: $user\n";
@@ -55,6 +65,15 @@ sub add_comment {
 
     $self->res->code(200);
     $self->res->body("THANKS for your comment");
+
+    my $msg = Mail::Send->new(Subject => 'New Comment', 
+                              To      => 'justin@hawkins.id.au');
+    $fh = $msg->open();
+    print $fh "Author: $user\n";
+    print $fh "IP:     $ip\n";
+    print $fh "\n";
+    print $fh "$comment\n\n";
+    close $fh;
 
     return 1;
 }

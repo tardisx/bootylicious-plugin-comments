@@ -13,6 +13,7 @@ WriteMakefile(
   (eval { ExtUtils::MakeMaker->VERSION(6.31) } ? (LICENSE => 'perl') : ()),
   PREREQ_PM    => {
     "Mojo" => '0.999910',
+    "Mail::Send" => 0,
   },
   test => {TESTS => 't/*.t'}
 );
