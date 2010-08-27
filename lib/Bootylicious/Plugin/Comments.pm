@@ -6,7 +6,7 @@ use base 'Mojolicious::Plugin';
 
 use Mail::Send;
 
-our $VERSION = '0.01';
+our $VERSION     = '0.01';
 our $CODE_LENGTH = 6;
 
 __PACKAGE__->attr( 'public_uri'        => '/' );
@@ -20,11 +20,11 @@ sub register {
     $self->public_uri( $args->{'public_uri'} ) if $args->{'public_uri'};
     $self->string_to_replace( $args->{'string_to_replace'} )
         if $args->{'string_to_replace'};
-    if (defined $args->{'email'}) {
-      $self->email( $args->{'email'} );
+    if ( defined $args->{'email'} ) {
+        $self->email( $args->{'email'} );
     }
     else {
-      die "you absolutely must define an email address";
+        die "you absolutely must define an email address";
     }
 
     # Replace the placeholder with the actual comments.
@@ -36,13 +36,11 @@ sub register {
 
     # Deleting them.
     $app->routes->route('/comment/delete/:article/:timestamp/:code')
-                ->name('delete')
-                ->to( cb => \&del_comment );
+        ->name('delete')->to( cb => \&del_comment );
 
     # Approving them.
     $app->routes->route('/comment/approve/:article/:timestamp/:code')
-                ->name('approve')
-                ->to( cb => \&app_comment );
+        ->name('approve')->to( cb => \&app_comment );
 
     $app->log->debug("Registered");
 }
@@ -55,15 +53,14 @@ sub add_comment {
     my $article = $self->param('article');
 
     my $timestamp = time();
-    my $code = _random_code();
+    my $code      = _random_code();
 
     my $comments_dir = _comments_dir($article);
     die unless ( -d $comments_dir );
 
     my $comment_filename = "$timestamp-$code";
 
-    my $filename = "$comments_dir/$comment_filename".
-                   "-unmoderated.md";
+    my $filename = "$comments_dir/$comment_filename" . "-unmoderated.md";
     open( my $fh, ">", $filename ) || die;
     print $fh "author: $user\n";
     print $fh "ip: $ip\n";
@@ -72,36 +69,51 @@ sub add_comment {
     print $fh "-----\n";
     close $fh;
 
-    $self->res->code(200);
-    $self->res->body("THANKS for your comment");
+    my $url_approve = $self->url_for(
+        'approve',
+        article   => $article,
+        timestamp => $timestamp,
+        code      => $code,
+    )->to_abs();
+    my $url_delete = $self->url_for(
+        'delete',
+        article   => $article,
+        timestamp => $timestamp,
+        code      => $code,
+    )->to_abs();
 
-    my $msg = Mail::Send->new(Subject => 'New Comment', 
-                              To      => 'justin@hawkins.id.au');
+    $self->app->log->debug("Approve: $url_approve");
+    $self->app->log->debug("Delete:  $url_delete");
+    
+    my $msg = Mail::Send->new(
+        Subject => 'New Comment',
+        To      => 'justin@hawkins.id.au'
+    );
+    
     $fh = $msg->open();
     print $fh "Author: $user\n";
     print $fh "IP:     $ip\n";
     print $fh "\n";
     print $fh "$comment\n\n";
-    print $fh "APPROVE: " . $self->url_for('approve',
-                                           article   => $article,
-                                           timestamp => $timestamp,
-                                           code      => $code,
-                                          )->to_abs() . "\n";
-    print $fh "DELETE: "  . $self->url_for('delete',
-                                           article   => $article,
-                                           timestamp => $timestamp,
-                                           code      => $code,
-                                          )->to_abs() . "\n";
+    print $fh "Approve: $url_approve\n";
+    print $fh "Delete:  $url_delete\n";
     close $fh;
+
+    # setup the confirmation page
+    $self->stash( 'layout',      'wrapper' );
+    $self->stash( 'title',       'Comment added' );
+    $self->stash( 'description', '' );
+    $self->render( text =>
+            '<p>Thanks for your comment - it will be moderated soon.</p>' );
 
     return 1;
 }
 
 sub app_comment {
-    my $self = shift;
-    my $article = $self->stash('article');
+    my $self      = shift;
+    my $article   = $self->stash('article');
     my $timestamp = $self->stash('timestamp');
-    my $code = $self->stash('code');
+    my $code      = $self->stash('code');
 
     $timestamp =~ s/[^\d]//g;
     $code      =~ s/[^\w]//g;
@@ -119,10 +131,10 @@ sub app_comment {
 }
 
 sub del_comment {
-    my $self = shift;
-    my $article = $self->stash('article');
+    my $self      = shift;
+    my $article   = $self->stash('article');
     my $timestamp = $self->stash('timestamp');
-    my $code = $self->stash('code');
+    my $code      = $self->stash('code');
 
     $timestamp =~ s/[^\d]//g;
     $code      =~ s/[^\w]//g;
@@ -149,12 +161,12 @@ sub show_comments {
     return unless $path =~ /^\/articles/;
 
     my $article      = $c->stash('article');
-    my $comments_dir = _comments_dir(_article_name($article));
+    my $comments_dir = _comments_dir( _article_name($article) );
 
     my $body        = $c->res->body;
     my $str_replace = $self->string_to_replace;
 
-    if ($body !~ /$str_replace/ms) {
+    if ( $body !~ /$str_replace/ms ) {
         $c->app->log->debug("No $str_replace tag- doing nothing");
         return;
     }
@@ -166,9 +178,8 @@ sub show_comments {
 
     my $comment_html = "<hr />";
     foreach my $comment_file ( glob "$comments_dir/*.md" ) {
-        next if ($comment_file =~ /unmoderated/);
-        my ( $timestamp, $ext ) = 
-          $comment_file =~ /(\d+)\-\w+\.(\w+)$/;
+        next if ( $comment_file =~ /unmoderated/ );
+        my ( $timestamp, $ext ) = $comment_file =~ /(\d+)\-\w+\.(\w+)$/;
         open my $comment_fh, "<", $comment_file || die;
 
         # parse metadata
@@ -184,7 +195,7 @@ sub show_comments {
 
         # get a parser depending on extension
         my $parser = main::_get_parser($ext);
-        die if ( !$parser );
+        die "no parser for $ext" if ( !$parser );
 
         my $to_be_parsed;
         while (<$comment_fh>) {
@@ -221,17 +232,17 @@ sub _article_name {
 }
 
 sub _comments_dir {
-    my $article_name       = shift;
+    my $article_name = shift;
 
     my $comments_dir = "comments/$article_name";
     return $comments_dir;
 }
 
 sub _random_code {
-    my @chars = (0..9, 'A'..'Z');
+    my @chars = ( 0 .. 9, 'A' .. 'Z' );
     my $string = '';
-    foreach (1..$CODE_LENGTH) {
-        $string .= $chars[rand(@chars)];
+    foreach ( 1 .. $CODE_LENGTH ) {
+        $string .= $chars[ rand(@chars) ];
     }
     return $string;
 }
