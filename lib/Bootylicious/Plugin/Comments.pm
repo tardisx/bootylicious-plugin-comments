@@ -143,6 +143,8 @@ sub show_comments {
     my $c    = shift;
     my $path = $c->req->url->path;
 
+    $c->app->log->debug("Starting show_comments");
+
     # I think this is smelly - can't this be overridden?
     return unless $path =~ /^\/articles/;
 
