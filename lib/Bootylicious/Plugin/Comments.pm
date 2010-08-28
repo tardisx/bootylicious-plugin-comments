@@ -55,8 +55,10 @@ sub add_comment {
     my $timestamp = time();
     my $code      = _random_code();
 
+    return $self->render_not_found unless ( $article );
+    
     my $comments_dir = _comments_dir($article);
-    die unless ( -d $comments_dir );
+    return $self->render_not_found unless ( -d $comments_dir );
 
     my $comment_filename = "$timestamp-$code";
 
@@ -84,12 +86,12 @@ sub add_comment {
 
     $self->app->log->debug("Approve: $url_approve");
     $self->app->log->debug("Delete:  $url_delete");
-    
+
     my $msg = Mail::Send->new(
         Subject => 'New Comment',
         To      => 'justin@hawkins.id.au'
     );
-    
+
     $fh = $msg->open();
     print $fh "Author: $user\n";
     print $fh "IP:     $ip\n";
