@@ -176,7 +176,8 @@ sub show_comments {
         mkdir $comments_dir || die $!;
     }
 
-    my $comment_html = "<hr />";
+    my $comment_html = "<h2>Comments on this entry:</h2>";
+    my $num_comments = 0;
     foreach my $comment_file ( glob "$comments_dir/*.md" ) {
         next if ( $comment_file =~ /unmoderated/ );
         my ( $timestamp, $ext ) = $comment_file =~ /(\d+)\-\w+\.(\w+)$/;
@@ -208,8 +209,12 @@ sub show_comments {
         );
         $comment_html .= $c->render_partial( 'a_comment',
             template_class => __PACKAGE__ );
+        $num_comments ++;
     }
 
+    $comment_html .= "<p>[ no comments yet ]</p>"
+        if (! $num_comments);
+    
     $comment_html .= $c->render_partial(
         'comment_form',
         article        => _article_name($article),
@@ -257,11 +262,12 @@ sub _random_code {
 __DATA__
 
 @@ a_comment.html.ep
-<h2><%= $author %> wrote on <%= $timestamp %>:</h2>
-<%== $content %>
 <hr />
+<h4><%= $author %> wrote on <%= $timestamp %>:</h4>
+<%== $content %>
 
 @@ comment_form.html.ep
+<h2>Add your own comment:</h2>
 <form method="POST" action="/comment/add">
 <input type="hidden" name="article" value="<%= $article %>">
 Your Name: <input type="text" name="author" ><br />
