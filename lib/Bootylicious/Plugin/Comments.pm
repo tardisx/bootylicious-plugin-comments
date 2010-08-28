@@ -55,8 +55,8 @@ sub add_comment {
     my $timestamp = time();
     my $code      = _random_code();
 
-    return $self->render_not_found unless ( $article );
-    
+    return $self->render_not_found unless ($article);
+
     my $comments_dir = _comments_dir($article);
     return $self->render_not_found unless ( -d $comments_dir );
 
@@ -209,12 +209,12 @@ sub show_comments {
         );
         $comment_html .= $c->render_partial( 'a_comment',
             template_class => __PACKAGE__ );
-        $num_comments ++;
+        $num_comments++;
     }
 
     $comment_html .= "<p>[ no comments yet ]</p>"
-        if (! $num_comments);
-    
+        if ( !$num_comments );
+
     $comment_html .= $c->render_partial(
         'comment_form',
         article        => _article_name($article),
@@ -224,7 +224,6 @@ sub show_comments {
     $body =~ s/$str_replace/$comment_html/;
 
     $c->res->body($body);
-
 }
 
 sub _article_name {
@@ -242,8 +241,8 @@ sub _comments_dir {
     # sanity check the name.... I'm not sure what the allowed values are
     # so we are going to just get brutal... anything but \w and - are
     # fatal.
-    die "bad article name $article_name" if ($article_name =~ /[^\w\-]/);
-    
+    die "bad article name $article_name" if ( $article_name =~ /[^\w\-]/ );
+
     my $comments_dir = "comments/$article_name";
     return $comments_dir;
 }
