@@ -105,10 +105,8 @@ sub add_comment {
     $self->stash( 'layout',      'wrapper' );
     $self->stash( 'title',       'Comment added' );
     $self->stash( 'description', '' );
-    $self->render( text =>
+    return $self->render( text =>
             '<p>Thanks for your comment - it will be moderated soon.</p>' );
-
-    return 1;
 }
 
 sub app_comment {
