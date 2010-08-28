@@ -289,4 +289,82 @@ __END__
 
 Bootylicious::Plugin::Comments
 
+=head1 VERSION
+
+version 0.07
+
+=head1 SYNOPSIS
+
+Configuration is done in the bootylicious config file. Parameters are
+passed to the plugins constructors.  Register the comments plugin in a
+configuration file (bootylicious.conf) by adding a line like this:
+
+    "plugins" : [
+        "comments", {
+            "email" : "someone@example.com"
+        }
+    ]
+
+Create article (e.g., 20090903-subversive.pod):
+
+    =head1 NAME
+
+    Subversive exciting article here!
+
+    Add a comment if you dare!
+
+    [ cut ]
+
+    %INSERT_COMMENTS_HERE%
+
+Create a directory 'comments' in the root of your bootylicious install.
+Create a subdirectory with the name of the article - so in this example:
+
+    mkdir comments
+    mkdir comments/20090903-subversive
+
+Comments will not appear unless both the directory exists and the
+%INSERT_COMMENTS_HERE% tag is inserted.
+
+=head1 DESCRIPTION
+
+L<Bootylicious::Plugin::Comments> - Comments plugin for Bootylicious (One-file
+blog engine software on Mojo steroids!)
+
+=head1 ATTRIBUTES
+
+=head2 C<public_uri>
+
+Set to public image URL (the same directory as bootylicious.conf publicdir, as
+seen by the web browser)
+
+    '/' by default
+
+=head2 C<string_to_replace>
+
+String that is replaced by the comments.
+
+    '%INSERT_GALLERY_HERE%' by default
+
+=head2 C<email>
+
+The email address you want moderation emails to be sent to. It is mandatory.
+
+=head1 AUTHOR
+
+Justin Hawkins, C<< <justin@hawkins.id.au> >>
+
+=head1 SEE ALSO
+
+L<http://getbootylicious.org>, L<bootylicious>, L<Mojo>, L<Mojolicious>, L<Mojolicious::Lite>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2010 Justin Hawkins, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
 =cut
+
+    
