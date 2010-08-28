@@ -5,6 +5,7 @@ use warnings;
 use base 'Mojolicious::Plugin';
 
 use Mail::Send;
+use Mojo::ByteStream 'b';
 
 our $VERSION     = '0.01';
 our $CODE_LENGTH = 6;
@@ -47,7 +48,7 @@ sub register {
 
 sub add_comment {
     my $self    = shift;
-    my $user    = $self->param('author');
+    my $author  = $self->param('author');
     my $comment = $self->param('comment');
     my $ip      = $self->tx->remote_address;
     my $article = $self->param('article');
@@ -62,9 +63,13 @@ sub add_comment {
 
     my $comment_filename = "$timestamp-$code";
 
+    # escape the things that will be re-rendered later.
+    $author  = b($author)->html_escape;
+    $comment = b($comment)->html_escape;
+    
     my $filename = "$comments_dir/$comment_filename" . "-unmoderated.md";
     open( my $fh, ">", $filename ) || die;
-    print $fh "author: $user\n";
+    print $fh "author: $author\n";
     print $fh "ip: $ip\n";
     print $fh "\n";
     print $fh "$comment\n";
@@ -93,7 +98,7 @@ sub add_comment {
     );
 
     $fh = $msg->open();
-    print $fh "Author: $user\n";
+    print $fh "Author: $author\n";
     print $fh "IP:     $ip\n";
     print $fh "\n";
     print $fh "$comment\n\n";
@@ -108,6 +113,8 @@ sub add_comment {
     return $self->render( text =>
             '<p>Thanks for your comment - it will be moderated soon.</p>' );
 }
+
+
 
 sub app_comment {
     my $self      = shift;
