@@ -236,6 +236,11 @@ sub _article_name {
 sub _comments_dir {
     my $article_name = shift;
 
+    # sanity check the name.... I'm not sure what the allowed values are
+    # so we are going to just get brutal... anything but \w and - are
+    # fatal.
+    die "bad article name $article_name" if ($article_name =~ /[^\w\-]/);
+    
     my $comments_dir = "comments/$article_name";
     return $comments_dir;
 }
