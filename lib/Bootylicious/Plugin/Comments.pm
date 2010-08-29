@@ -9,6 +9,7 @@ use Mojo::ByteStream 'b';
 
 our $VERSION     = '0.01';
 our $CODE_LENGTH = 6;
+our $email;
 
 __PACKAGE__->attr( 'public_uri'        => '/' );
 __PACKAGE__->attr( 'string_to_replace' => '%INSERT_COMMENTS_HERE%' );
@@ -23,6 +24,8 @@ sub register {
         if $args->{'string_to_replace'};
     if ( defined $args->{'email'} ) {
         $self->email( $args->{'email'} );
+        $email = $args->{'email'}; # ugly, but don't know how to get this to
+                                   # the request otherwise...
     }
     else {
         die "you absolutely must define an email address";
@@ -48,6 +51,7 @@ sub register {
 
 sub add_comment {
     my $self    = shift;
+
     my $author  = $self->param('author');
     my $comment = $self->param('comment');
     my $ip      = $self->tx->remote_address;
@@ -94,7 +98,7 @@ sub add_comment {
 
     my $msg = Mail::Send->new(
         Subject => 'New Comment',
-        To      => 'justin@hawkins.id.au'
+        To      => $email,
     );
 
     $fh = $msg->open();
@@ -196,7 +200,6 @@ sub show_comments {
             last if ( $line =~ /^$/ );
             my ( $key, $val ) = $line =~ /^(\w+):\s*(.*)$/;
             if ( $key && defined $val ) {
-                warn "$key $val";
                 $metadata->{$key} = $val;
             }
         }
